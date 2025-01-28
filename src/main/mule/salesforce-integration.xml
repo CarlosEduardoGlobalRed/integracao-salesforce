@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="d7043f2b-6190-47d8-8b73-142ba3a80fdc" >
+		<salesforce:basic-connection username="${salesforce.user}" password="${salesforce.password}" securityToken="${salesforce.token}"/>
+	</salesforce:sfdc-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="544e00c0-7d9d-4b18-a055-6ce0138dde75" file="properties\config.yaml" />
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="1b47ac81-d716-40d5-9c21-00567845501e" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="salesforce-integrationFlow" doc:id="b1bc9922-3bf4-4605-bf7f-b7cf6dc03133" >
+		<http:listener doc:name="Listener" doc:id="eff85e1e-18a3-4ab8-97de-17eedcf8dca6" config-ref="HTTP_Listener_config" path="/salesforce/usuarios"/>
+		<choice doc:name="Choice" doc:id="60060097-b8b4-4b40-8506-99959111150d" >
+			<when expression="#[attributes.method == 'GET']">
+				<flow-ref doc:name="consultar-usuarios" doc:id="71648870-367d-4083-8f0c-756bba26b301" name="consultar-usuarios"/>
+			</when>
+			<when expression="#[attributes.method == 'POST']">
+				<flow-ref doc:name="inserir-usuarios" doc:id="d22fb27b-7a64-49c4-ac9e-654eea07db13" name="inserir-usuarios"/>
+			</when>
+			<when expression="#[attributes.method == 'PUT']">
+				<flow-ref doc:name="atualizar-usuarios" doc:id="50840a86-6055-4b80-8f1a-20e564048704" name="atualizar-usuarios"/>
+			</when>
+			<when expression="#[attributes.method == 'DELETE']">
+				<flow-ref doc:name="remover-usuario" doc:id="230ac2fa-e66d-4ee9-bcd4-4c794b4880fd" name="remover-usuario"/>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="52a402d4-efd1-4ae0-a35a-1991fd2f8cea" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	Mensagem: "nao implementado"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<sub-flow name="consultar-usuarios" doc:id="ed51639b-e318-419e-a9f2-99835471a184" >
+		<logger level="INFO" doc:name="Inicio do Fluxo de Consultar Usuario" doc:id="01175a62-4641-4be0-a6ee-08e6886bba10" message="Inicio do Fluxo de Consultar Usuario"/>
+		<ee:transform doc:name="Geral" doc:id="57f5454b-252f-45f4-aa73-9809a7efead8">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+var baseQuery = "SELECT Name, Idade__c, Email__c, Descricao__c FROM Usuario__c"
+---
+baseQuery
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+		<salesforce:query doc:name="Consultar usuario" doc:id="42aa1096-c116-4ec6-b2c6-e21b96971a90" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query ><![CDATA[#[payload]]]></salesforce:salesforce-query>
+		</salesforce:query>
+		<ee:transform doc:name="Transform Message" doc:id="5ff97de5-2875-4792-98c8-9670483b2fd2" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Fim do Fluxo de Consultar Usuario" doc:id="f7e1df93-5b50-4bba-9fcf-f305cc78eee8" message="Fim do Fluxo de Consultar Usuario"/>
+	</sub-flow>
+	<sub-flow name="inserir-usuarios" doc:id="0309651e-a285-4e2c-a033-3ce9ab93fea3" >
+		<logger level="INFO" doc:name="Inicio do Fluxo de Inserir Usuario" doc:id="fa6aad4a-2a62-45a3-a158-07f988b62cf1" message="Inicio do Fluxo de Inserir Usuario" />
+		<ee:transform doc:name="Transformação payload" doc:id="48038fa7-6881-4e6f-b5e3-9000f1e5fa92" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[output application/json
+---
+payload map {
+	Name: $.nome,
+	Idade__c: $.idade,
+	Email__c: $.email,
+	Descricao__c: $.descricao
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<salesforce:create doc:name="Criar usuario" doc:id="d337a2eb-ee61-4ed1-9ad5-0a7fbf4ce9f5" config-ref="Salesforce_Config" type="Usuario__c">
+		</salesforce:create>
+		<ee:transform doc:name="Transform Message" doc:id="68d5aab1-5b5c-47f6-813c-fecacd248333" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json skipNullOn="everywhere"
+---
+{
+Usuarios: payload map {
+	Nome: $.Name,
+	Idade: $.Idade__c as Number default null,
+	Descricao: $.Descricao__c,
+	Email: $.Email__c,
+	ID: $.id__c default null
+}}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="IDInserido" doc:id="34a1d71b-39fc-4dea-b9b3-731a698ad933">
+			<ee:message>
+				<ee:set-payload><![CDATA[output application/json
+var id = flatten(payload.items.id)
+---
+flatten(payload.items) map
+{
+	IDInserido: $.id default null
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Fim do Fluxo de Inserir Usuario" doc:id="dcc2efc0-1a62-4d3f-a53f-e63d768fe9e7" message="Fim do Fluxo de Inserir Usuario" />
+	</sub-flow>
+	<sub-flow name="atualizar-usuarios" doc:id="efa0b696-5c1d-4c8f-a2d3-2467edd60c3b" >
+		<logger level="INFO" doc:name="Inicio do Fluxo de Atualizar Usuario" doc:id="d1bd330a-359c-4c39-a5ea-dd257120e0b4" message="Inicio do Fluxo de Atualizar Usuario" />
+		<ee:transform doc:name="Transformação payload" doc:id="aad44639-b6af-43f2-96fb-de361b3c8eed">
+			<ee:message>
+				<ee:set-payload><![CDATA[output application/json
+---
+payload map {
+	Name: $.nome,
+	Idade__c: $.idade,
+	Email__c: $.email,
+	Descricao__c: $.descricao
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<salesforce:update doc:name="Atualizar Usuario" doc:id="0763adf2-9f3d-45b1-be39-8d898c960207" config-ref="Salesforce_Config" type="Usuario__c">
+		</salesforce:update>
+		<ee:transform doc:name="Transform Message" doc:id="24afd448-c878-4ef2-bcaa-58cd0becdb00">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Fim do Fluxo de Atualizar Usuario" doc:id="1b04fbaf-b910-4910-aae6-2a68ed0e1514" message="Fim do Fluxo de Atualizar Usuario" />
+	</sub-flow>
+	<sub-flow name="remover-usuario" doc:id="abe1317a-600f-4b1a-87a7-1ea5081d9f20" >
+		<logger level="INFO" doc:name="Inicio do Fluxo de Remover Usuario" doc:id="2ce19c2d-453c-4bb0-af69-884ea7e38c60" message="Inicio do Fluxo de Remover Usuario" />
+		<!-- [STUDIO:"Delete"]<salesforce:delete doc:name="Delete" doc:id="296c4207-246c-4287-81fe-1c543633a093" config-ref="Salesforce_Config"/> [STUDIO] -->
+		<logger level="INFO" doc:name="Fim do Fluxo de Remover Usuario" doc:id="63328e16-700f-43c5-9e3b-2ebe8fb0cfad" message="Fim do Fluxo de Remover Usuario" />
+	</sub-flow>
+</mule>
