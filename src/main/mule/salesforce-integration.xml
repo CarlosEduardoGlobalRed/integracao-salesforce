@@ -45,7 +45,14 @@ output application/json
 	<sub-flow name="consultar-usuarios" doc:id="ed51639b-e318-419e-a9f2-99835471a184" >
 		<logger level="INFO" doc:name="Inicio do Fluxo de Consultar Usuario" doc:id="01175a62-4641-4be0-a6ee-08e6886bba10" message="Inicio do Fluxo de Consultar Usuario"/>
 		<salesforce:query doc:name="Consultar usuario" doc:id="42aa1096-c116-4ec6-b2c6-e21b96971a90" config-ref="Salesforce_Config">
-			<salesforce:salesforce-query ><![CDATA[SELECT Name, Idade__c, Email__c, Descricao__c, Id FROM Usuario__c]]></salesforce:salesforce-query>
+			<salesforce:salesforce-query ><![CDATA[SELECT Name, Idade__c, Email__c, Descricao__c, Id FROM Usuario__c WHERE Id = :CodUsuario]]></salesforce:salesforce-query>
+			<salesforce:parameters ><![CDATA[#[output application/java
+fun validNull(str) = if ( str == null ) "NULL" else "'" ++ str ++ "'"
+
+---
+{
+	CodUsuario : validNull(attributes.queryParams.CodUsuario as String) default null
+}]]]></salesforce:parameters>
 		</salesforce:query>
 		<ee:transform doc:name="Transform Message" doc:id="68d5aab1-5b5c-47f6-813c-fecacd248333">
 			<ee:message>
@@ -58,7 +65,7 @@ Usuarios: payload map {
 	Idade: $.Idade__c as Number default null,
 	Descricao: $.Descricao__c,
 	Email: $.Email__c,
-	ID: $.Id default null
+	CodUsuario: $.Id default null
 }}]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
@@ -132,7 +139,11 @@ payload]]></ee:set-payload>
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
 ---
-UsuarioRemovido : payload.items.payload.success
+payload map {
+	
+	UsuarioRemovido : payload.items.payload.success
+
+}
 ]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
